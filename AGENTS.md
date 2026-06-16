@@ -1,5 +1,9 @@
 # Canva Apps SDK Starter Kit - Agent Guide
 
+### Custom information specific to the project
+
+This project has all types for Typescript in `src/types` all AIRO-project type should belong to the `AIRO` namespace
+
 ## Overview
 
 This project is for creating Canva Apps, which are react single page applications (SPA) that run in the Canva Editor, and other pages in Canva.
