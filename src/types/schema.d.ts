@@ -1,5 +1,10 @@
 namespace AIRO {
-	interface addressComponentObject {
+
+	/**
+	 * 
+	 */
+
+	export interface addressComponentObject {
 		streetNumber: string
 		streetName: string
 		streetTypeLong: string
@@ -8,3 +13,5 @@ namespace AIRO {
 		state: string
 	}
 }
+
+export default AIRO
