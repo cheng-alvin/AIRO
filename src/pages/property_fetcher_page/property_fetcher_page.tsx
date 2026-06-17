@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   FormField,
+  LinkButton,
   TextInput,
   Select,
   LoadingIndicator,
@@ -325,12 +326,12 @@ export const PropertyFetcherPage = () => {
                         description: "Button text to query property details",
                       })}
                     </Button>
-                    <Button variant="secondary" stretch type="button" onClick={() => { setSearchMode("chunked"); setIsSubmitted(false); }}>
+                    <LinkButton onClick={() => { setSearchMode("chunked"); setIsSubmitted(false); }}>
                       {intl.formatMessage({
                         defaultMessage: "Search by Address Fields",
                         description: "Button to switch to detailed fields form",
                       })}
-                    </Button>
+                    </LinkButton>
                   </Rows>
                 </form>
               ) : (
@@ -388,7 +389,7 @@ export const PropertyFetcherPage = () => {
                     />
 
                     <Columns spacing="1.5u">
-                      <Column width="1/2">
+                      <Column width="3/4">
                         <FormField
                           label={intl.formatMessage({
                             defaultMessage: "State",
@@ -405,7 +406,7 @@ export const PropertyFetcherPage = () => {
                           )}
                         />
                       </Column>
-                      <Column width="1/2">
+                      <Column width="1/4">
                         <FormField
                           label={intl.formatMessage({
                             defaultMessage: "Postcode",
@@ -414,7 +415,7 @@ export const PropertyFetcherPage = () => {
                           control={(props) => (
                             <TextInput
                               {...props}
-                              placeholder="e.g. 2000"
+                              placeholder="2000"
                               value={postcodeInput}
                               onChange={setPostcodeInput}
                             />
@@ -431,12 +432,12 @@ export const PropertyFetcherPage = () => {
                             description: "Button text to query property details",
                           })}
                         </Button>
-                        <Button variant="secondary" stretch type="button" onClick={() => { setSearchMode("single"); setIsSubmitted(false); }}>
+                        <LinkButton onClick={() => { setSearchMode("single"); setIsSubmitted(false); }}>
                           {intl.formatMessage({
                             defaultMessage: "Search by Single Address Line",
                             description: "Button to switch back to single address input",
                           })}
-                        </Button>
+                        </LinkButton>
                       </Rows>
                     </Box>
                   </Rows>
