@@ -17,31 +17,7 @@ import {
 import React, { useState } from "react";
 import { useIntl } from "react-intl";
 import { AIRO } from "../../types";
-
-// Mock property data representing Domain API structure
-const mockPropertyData: Record<string, AIRO.PropertyData> = {
-  "123 Ocean View Drive, Beachside": {
-    address: "123 Ocean View Drive, Beachside",
-    bedrooms: 4,
-    bathrooms: 3,
-    carSpaces: 2,
-    areaSize: 350,
-  },
-  "45 Mountain Road, Highland Park": {
-    address: "45 Mountain Road, Highland Park",
-    bedrooms: 5,
-    bathrooms: 4,
-    carSpaces: 3,
-    areaSize: 520,
-  },
-  "789 City Center Ave, Downtown": {
-    address: "789 City Center Ave, Downtown",
-    bedrooms: 2,
-    bathrooms: 2,
-    carSpaces: 1,
-    areaSize: 95,
-  },
-};
+import { PropertyMap } from "./PropertyMap";
 
 type SearchStatus = "idle" | "loading" | "success" | "error";
 type SearchMode = "single" | "chunked";
@@ -56,6 +32,26 @@ const stateOptions = [
   { value: "ACT", label: "ACT (Australian Capital Territory)" },
   { value: "NT", label: "NT (Northern Territory)" },
 ];
+
+const DOMAIN_API_BASE_URL = "https://api.domain.com.au";
+const MOCK_TOKEN = process.env.DOMAIN_API_KEY || "MOCK_DOMAIN_API_TOKEN"; // This would typically come from an environment variable or auth flow
+
+interface DomainSuggestion {
+  id: string;
+  relativeScore: number;
+}
+
+interface DomainPropertyDetails {
+  address: string;
+  bedrooms: number;
+  bathrooms: number;
+  carSpaces: number;
+  areaSize: number;
+  geolocation?: {
+    latitude: number;
+    longitude: number;
+  };
+}
 
 export const PropertyFetcherPage = () => {
   const intl = useIntl();
@@ -73,54 +69,106 @@ export const PropertyFetcherPage = () => {
 
   const [propertyDetails, setPropertyDetails] = useState<AIRO.PropertyData | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [selectedCoordinates, setSelectedCoordinates] = useState<{lat: number, lng: number} | null>(null);
 
-  const handleSearch = (e?: React.FormEvent) => {
+  const fetchPropertySuggestion = async (addressString: string): Promise<string | null> => {
+    try {
+      const response = await fetch(`${DOMAIN_API_BASE_URL}/v1/properties/_suggest?terms=${encodeURIComponent(addressString)}`, {
+        method: "GET",
+        headers: {
+          "X-Api-Key": MOCK_TOKEN,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Suggestion API failed with status: ${response.status}`);
+      }
+
+      const data: DomainSuggestion[] = await response.json();
+      if (data && data.length > 0) {
+        return data[0].id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching property suggestion:", error);
+      return null;
+    }
+  };
+
+  const getPropertyDetails = async (id: string): Promise<AIRO.PropertyData | null> => {
+    try {
+      const response = await fetch(`${DOMAIN_API_BASE_URL}/v1/properties/${encodeURIComponent(id)}`, {
+        method: "GET",
+        headers: {
+          "X-Api-Key": MOCK_TOKEN,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Property Details API failed with status: ${response.status}`);
+      }
+
+      const data: DomainPropertyDetails = await response.json();
+      return {
+        address: data.address,
+        bedrooms: data.bedrooms,
+        bathrooms: data.bathrooms,
+        carSpaces: data.carSpaces,
+        areaSize: data.areaSize,
+        latitude: data.geolocation?.latitude,
+        longitude: data.geolocation?.longitude,
+      };
+    } catch (error) {
+      console.error("Error fetching property details:", error);
+      return null;
+    }
+  };
+
+  const handleSearch = async (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
     }
     setIsSubmitted(true);
 
+    let searchQuery = "";
     if (searchMode === "single") {
       if (!addressInput.trim()) {
         return;
       }
+      searchQuery = addressInput.trim();
     } else {
       if (!streetAddressInput.trim() || !suburbInput.trim()) {
         return;
       }
+      searchQuery = `${streetAddressInput.trim()}, ${suburbInput.trim()} ${stateInput} ${postcodeInput.trim()}`.trim();
     }
 
     setStatus("loading");
 
-    setTimeout(() => {
-      let matchedKey: string | undefined;
+    try {
+      const propertyId = await fetchPropertySuggestion(searchQuery);
 
-      if (searchMode === "single") {
-        const normalizedInput = addressInput.trim().toLowerCase();
-        matchedKey = Object.keys(mockPropertyData).find(
-          (key) =>
-            key.toLowerCase().includes(normalizedInput) ||
-            normalizedInput.includes(key.toLowerCase())
-        );
-      } else {
-        const streetLower = streetAddressInput.trim().toLowerCase();
-        const suburbLower = suburbInput.trim().toLowerCase();
-
-        // Search by verifying both street and suburb exist in the mock data key
-        matchedKey = Object.keys(mockPropertyData).find((key) => {
-          const keyLower = key.toLowerCase();
-          return keyLower.includes(streetLower) && keyLower.includes(suburbLower);
-        });
+      if (propertyId) {
+        const details = await getPropertyDetails(propertyId);
+        if (details) {
+          setPropertyDetails(details);
+          if (details.latitude && details.longitude) {
+            setSelectedCoordinates({ lat: details.latitude, lng: details.longitude });
+          }
+          setStatus("success");
+          return;
+        }
       }
 
-      if (matchedKey) {
-        setPropertyDetails(mockPropertyData[matchedKey]);
-        setStatus("success");
-      } else {
-        setPropertyDetails(null);
-        setStatus("error");
-      }
-    }, 1200);
+      setPropertyDetails(null);
+      setStatus("error");
+    } catch (error) {
+      console.error("Search workflow failed:", error);
+      setPropertyDetails(null);
+      setStatus("error");
+    }
   };
 
   const handleReset = () => {
@@ -132,6 +180,12 @@ export const PropertyFetcherPage = () => {
     setPostcodeInput("");
     setPropertyDetails(null);
     setIsSubmitted(false);
+    setSelectedCoordinates(null);
+  };
+
+  const handleMapClick = (lat: number, lng: number) => {
+    setSelectedCoordinates({ lat, lng });
+    // Future enhancement: trigger reverse geocode lookup here to populate addressInput
   };
 
   const isSingleInputEmpty = isSubmitted && searchMode === "single" && !addressInput.trim();
@@ -185,7 +239,7 @@ export const PropertyFetcherPage = () => {
               >
                 {intl.formatMessage({
                   defaultMessage:
-                    "We couldn't resolve this address. For testing, try using: '123 Ocean View Drive' or '45 Mountain Road'.",
+                    "We couldn't resolve this address. Check your API permissions or try another property.",
                   description: "Error message details",
                 })}
               </Alert>
@@ -227,7 +281,7 @@ export const PropertyFetcherPage = () => {
                       })}
                     </Text>
                     <Text size="large" variant="bold">
-                      {propertyDetails.bedrooms.toString()}
+                      {propertyDetails.bedrooms?.toString() || "-"}
                     </Text>
                   </Rows>
                 </Box>
@@ -242,7 +296,7 @@ export const PropertyFetcherPage = () => {
                       })}
                     </Text>
                     <Text size="large" variant="bold">
-                      {propertyDetails.bathrooms.toString()}
+                      {propertyDetails.bathrooms?.toString() || "-"}
                     </Text>
                   </Rows>
                 </Box>
@@ -257,7 +311,7 @@ export const PropertyFetcherPage = () => {
                       })}
                     </Text>
                     <Text size="large" variant="bold">
-                      {propertyDetails.carSpaces.toString()}
+                      {propertyDetails.carSpaces?.toString() || "-"}
                     </Text>
                   </Rows>
                 </Box>
@@ -272,7 +326,7 @@ export const PropertyFetcherPage = () => {
                       })}
                     </Text>
                     <Text size="large" variant="bold">
-                      {`${propertyDetails.areaSize} m²`}
+                      {propertyDetails.areaSize ? `${propertyDetails.areaSize} m²` : "-"}
                     </Text>
                   </Rows>
                 </Box>
@@ -444,6 +498,15 @@ export const PropertyFetcherPage = () => {
               )}
             </Rows>
           )}
+
+          {/* Interactive Leaflet Map */}
+          <Box paddingTop="2u">
+            <PropertyMap
+              latitude={selectedCoordinates?.lat}
+              longitude={selectedCoordinates?.lng}
+              onMapClick={handleMapClick}
+            />
+          </Box>
         </Rows>
       </Box>
     </Box>

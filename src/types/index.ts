@@ -5,5 +5,7 @@ export namespace AIRO {
     bathrooms: number;
     carSpaces: number;
     areaSize: number; // area size in m²
+    latitude?: number;
+    longitude?: number;
   }
 }
