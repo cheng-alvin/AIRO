@@ -13,7 +13,6 @@ import {
   Columns,
   Column,
   SearchIcon,
-  Image,
 } from "@canva/app-ui-kit";
 import React, { useState } from "react";
 import { useIntl } from "react-intl";
@@ -21,6 +20,8 @@ import type { AIRO } from "../../types";
 import { PropertyMap } from "./PropertyMap";
 import type { LatLngLiteral } from "leaflet";
 import { fetchSuggestionMock, fetchPropertyDetailsMock } from "../../services/MockDomainService";
+import { useAddElement } from "../../util/use_add_element";
+import { notification } from "@canva/platform";
 
 type SearchStatus = "idle" | "loading" | "success" | "error";
 type SearchMode = "single" | "chunked";
@@ -76,6 +77,49 @@ export const PropertyFetcherPage = () => {
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
    
   const [selectedCoordinates, setSelectedCoordinates] = useState<LatLngLiteral| null>(null);
+
+  const { addText, canAdd } = useAddElement();
+  const [isInserting, setIsInserting] = useState<boolean>(false);
+  const [insertError, setInsertError] = useState<string | null>(null);
+
+  const handleAddToDesign = async () => {
+    if (!propertyDetails) return;
+    setIsInserting(true);
+    setInsertError(null);
+
+    try {
+      if (!canAdd) {
+        throw new Error(
+          intl.formatMessage({
+            defaultMessage: "You don't have permission to add elements to this design.",
+            description: "Error message when insertion is not supported/permitted",
+          })
+        );
+      }
+
+      const formattedText = [
+        propertyDetails.address,
+        intl.formatMessage({ defaultMessage: "Bedrooms: {count}", description: "Bedroom count text" }, { count: propertyDetails.bedrooms }),
+        intl.formatMessage({ defaultMessage: "Bathrooms: {count}", description: "Bathroom count text" }, { count: propertyDetails.bathrooms }),
+        intl.formatMessage({ defaultMessage: "Garages: {count}", description: "Garage count text" }, { count: propertyDetails.carSpaces }),
+        intl.formatMessage({ defaultMessage: "Size: {size} m²", description: "Property size text" }, { size: propertyDetails.areaSize }),
+      ].join("\n");
+
+      await addText(formattedText);
+
+      await notification.addToast({
+        messageText: intl.formatMessage({
+          defaultMessage: "Property details added to design!",
+          description: "Toast success message",
+        }),
+      });
+    } catch (error: any) {
+      console.error("Failed to add to design:", error);
+      setInsertError(error.message || "Failed to add elements to the design.");
+    } finally {
+      setIsInserting(false);
+    }
+  };
 
   const fetchPropertySuggestion = async (
     addressString: string,
@@ -312,6 +356,33 @@ export const PropertyFetcherPage = () => {
 
           {status === "success" && propertyDetails && (
             <Rows spacing="2u">
+              {/* Property Image with 16:9 Aspect Ratio */}
+              {propertyDetails.imageUrl && (
+                <div
+                  style={{
+                    aspectRatio: "16 / 9",
+                    overflow: "hidden",
+                    position: "relative",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#f0f0f0",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <img
+                    src={propertyDetails.imageUrl}
+                    alt={propertyDetails.address}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Found Address Header */}
               <Box
                 background="neutralSubtle"
@@ -413,12 +484,36 @@ export const PropertyFetcherPage = () => {
               </Grid>
 
               {/* Actions */}
-              <Button variant="secondary" stretch onClick={handleReset}>
-                {intl.formatMessage({
-                  defaultMessage: "Search Another Address",
-                  description: "Button text to search again after success",
-                })}
-              </Button>
+              {insertError && (
+                <Alert
+                  tone="critical"
+                  title={intl.formatMessage({
+                    defaultMessage: "Failed to Add to Design",
+                    description: "Alert title when insertion fails",
+                  })}
+                >
+                  {insertError}
+                </Alert>
+              )}
+              <Rows spacing="1.5u">
+                <Button
+                  variant="primary"
+                  stretch
+                  loading={isInserting}
+                  onClick={handleAddToDesign}
+                >
+                  {intl.formatMessage({
+                    defaultMessage: "Add to Design",
+                    description: "Button text to insert property info onto the canvas",
+                  })}
+                </Button>
+                <Button variant="secondary" stretch onClick={handleReset} disabled={isInserting}>
+                  {intl.formatMessage({
+                    defaultMessage: "Search Another Address",
+                    description: "Button text to search again after success",
+                  })}
+                </Button>
+              </Rows>
             </Rows>
           )}
 
@@ -603,8 +698,8 @@ export const PropertyFetcherPage = () => {
           {/* Interactive Leaflet Map */}
           <Box paddingTop="2u">
             <PropertyMap
-              latitude={selectedCoordinates?.lat}
-              longitude={selectedCoordinates?.lng}
+              lat={selectedCoordinates?.lat}
+              lng={selectedCoordinates?.lng}
               onMapClick={handleMapClick}
             />
           </Box>

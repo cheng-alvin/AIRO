@@ -24,16 +24,24 @@ export const useAddElement = () => {
     isSupported(fn),
   );
 
-  const addText = (text?: string) => {
+  const canAdd = !!addElement;
+
+  const addText = async (text?: string) => {
+    if (!addElement) {
+      throw new Error("Insertion is not supported or permitted in this context.");
+    }
     const textElement: TextElement = {
       type: "text",
       children: [text || ""],
     };
 
-    addElement?.(textElement);
+    await addElement(textElement);
   };
 
   const addImage = async (imageUrl: string, altText: string) => {
+    if (!addElement) {
+      throw new Error("Insertion is not supported or permitted in this context.");
+    }
     const mimeType = getMimeTypeFromUrl(imageUrl);
     const image = await upload({
       mimeType,
@@ -52,11 +60,12 @@ export const useAddElement = () => {
       ref: image.ref,
     };
 
-    addElement?.(imageElement);
+    await addElement(imageElement);
   };
 
   return {
     addText,
     addImage,
+    canAdd,
   };
 };

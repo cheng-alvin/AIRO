@@ -53,12 +53,12 @@ export function buildConfig({
     context: path.resolve(process.cwd(), "./"),
     entry: inHarness
       ? {
-          harness: path.join(process.cwd(), "harness", "harness.tsx"),
-          init: path.join(process.cwd(), "harness", "init.ts"),
-        }
+        harness: path.join(process.cwd(), "harness", "harness.tsx"),
+        init: path.join(process.cwd(), "harness", "init.ts"),
+      }
       : {
-          app: appEntry,
-        },
+        app: appEntry,
+      },
     target: "web",
     resolve: {
       alias: {
@@ -179,6 +179,7 @@ export function buildConfig({
     plugins: [
       new DefinePlugin({
         BACKEND_HOST: JSON.stringify(backendHost),
+        "process.env.VITE_USE_MOCK_API": JSON.stringify(process.env.VITE_USE_MOCK_API),
       }),
       // Apps can only submit a single JS file via the Developer Portal
       new optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
@@ -202,12 +203,12 @@ function buildDevConfig(options?: DevConfig): {
   let devServer: DevServerConfiguration = {
     server: enableHttps
       ? {
-          type: "https",
-          options: {
-            cert: certFile,
-            key: keyFile,
-          },
-        }
+        type: "https",
+        options: {
+          cert: certFile,
+          key: keyFile,
+        },
+      }
       : "http",
     host,
     allowedHosts: [host],

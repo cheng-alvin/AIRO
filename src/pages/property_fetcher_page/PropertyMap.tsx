@@ -15,7 +15,9 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-interface PropertyMapProps extends LatLngLiteral {
+interface PropertyMapProps {
+  lat?: number;
+  lng?: number;
   onMapClick?: (lat: number, lng: number) => void;
 }
 
