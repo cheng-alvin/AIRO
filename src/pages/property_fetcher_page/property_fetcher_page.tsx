@@ -19,6 +19,7 @@ import React, { useState } from "react";
 import { useIntl } from "react-intl";
 import type { AIRO } from "../../types";
 import { PropertyMap } from "./PropertyMap";
+import type { LatLngLiteral } from "leaflet";
 import { fetchSuggestionMock, fetchPropertyDetailsMock } from "../../services/MockDomainService";
 
 type SearchStatus = "idle" | "loading" | "success" | "error";
@@ -73,10 +74,8 @@ export const PropertyFetcherPage = () => {
   const [propertyDetails, setPropertyDetails] =
     useState<AIRO.PropertyData | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [selectedCoordinates, setSelectedCoordinates] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+   
+  const [selectedCoordinates, setSelectedCoordinates] = useState<LatLngLiteral| null>(null);
 
   const fetchPropertySuggestion = async (
     addressString: string,
@@ -85,7 +84,6 @@ export const PropertyFetcherPage = () => {
       const mockSuggestions = await fetchSuggestionMock(addressString);
       return mockSuggestions && mockSuggestions.length > 0 ? mockSuggestions[0].id : null;
     }
-
     try {
       const response = await fetch(
         `${DOMAIN_API_BASE_URL}/v1/properties/_suggest?terms=${encodeURIComponent(addressString)}`,
@@ -315,7 +313,11 @@ export const PropertyFetcherPage = () => {
           {status === "success" && propertyDetails && (
             <Rows spacing="2u">
               {/* Found Address Header */}
-              <Box background="neutralSubtle" borderRadius="standard" padding="1.5u">
+              <Box
+                background="neutralSubtle"
+                borderRadius="standard"
+                padding="1.5u"
+              >
                 <Rows spacing="0.5u">
                   <Text size="xsmall" tone="secondary">
                     {intl.formatMessage({
@@ -329,89 +331,86 @@ export const PropertyFetcherPage = () => {
                 </Rows>
               </Box>
 
-              {/* Image Header with 16:9 Container */}
-              {propertyDetails.imageUrl && (
-                <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", borderRadius: "8px", overflow: "hidden" }}>
-                  <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
-                    <img 
-                      src={propertyDetails.imageUrl} 
-                      alt="Property" 
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    />
-                  </div>
-                </div>
-              )}
+              {/* Attributes Display Grid */}
+              <Grid columns={2} spacing="1.5u">
+                {/* Bedrooms */}
+                <Box
+                  background="neutral"
+                  borderRadius="standard"
+                  padding="1.5u"
+                >
+                  <Rows spacing="0.5u">
+                    <Text size="xsmall" tone="secondary">
+                      {intl.formatMessage({
+                        defaultMessage: "Bedrooms",
+                        description: "Label for bedroom count",
+                      })}
+                    </Text>
+                    <Text size="large" variant="bold">
+                      {propertyDetails.bedrooms?.toString() || "-"}
+                    </Text>
+                  </Rows>
+                </Box>
 
-              {/* Data Grid: Columns layout */}
-              <Rows spacing="1.5u">
-                {/* Row 1: Bedrooms, Bathrooms */}
-                <Columns spacing="1.5u">
-                  <Column width="1/2">
-                    <Box background="neutral" borderRadius="standard" padding="1.5u">
-                      <Rows spacing="0.5u">
-                        <Text size="xsmall" tone="secondary">
-                          {intl.formatMessage({
-                            defaultMessage: "Beds",
-                            description: "Label for bedroom count",
-                          })}
-                        </Text>
-                        <Text size="large" variant="bold">
-                          {propertyDetails.bedrooms?.toString() || "-"}
-                        </Text>
-                      </Rows>
-                    </Box>
-                  </Column>
-                  <Column width="1/2">
-                    <Box background="neutral" borderRadius="standard" padding="1.5u">
-                      <Rows spacing="0.5u">
-                        <Text size="xsmall" tone="secondary">
-                          {intl.formatMessage({
-                            defaultMessage: "Baths",
-                            description: "Label for bathroom count",
-                          })}
-                        </Text>
-                        <Text size="large" variant="bold">
-                          {propertyDetails.bathrooms?.toString() || "-"}
-                        </Text>
-                      </Rows>
-                    </Box>
-                  </Column>
-                </Columns>
+                {/* Bathrooms */}
+                <Box
+                  background="neutral"
+                  borderRadius="standard"
+                  padding="1.5u"
+                >
+                  <Rows spacing="0.5u">
+                    <Text size="xsmall" tone="secondary">
+                      {intl.formatMessage({
+                        defaultMessage: "Bathrooms",
+                        description: "Label for bathroom count",
+                      })}
+                    </Text>
+                    <Text size="large" variant="bold">
+                      {propertyDetails.bathrooms?.toString() || "-"}
+                    </Text>
+                  </Rows>
+                </Box>
 
-                {/* Row 2: Car Spaces, Land Size */}
-                <Columns spacing="1.5u">
-                  <Column width="1/2">
-                    <Box background="neutral" borderRadius="standard" padding="1.5u">
-                      <Rows spacing="0.5u">
-                        <Text size="xsmall" tone="secondary">
-                          {intl.formatMessage({
-                            defaultMessage: "Car Spaces",
-                            description: "Label for car space count",
-                          })}
-                        </Text>
-                        <Text size="large" variant="bold">
-                          {propertyDetails.carSpaces?.toString() || "-"}
-                        </Text>
-                      </Rows>
-                    </Box>
-                  </Column>
-                  <Column width="1/2">
-                    <Box background="neutral" borderRadius="standard" padding="1.5u">
-                      <Rows spacing="0.5u">
-                        <Text size="xsmall" tone="secondary">
-                          {intl.formatMessage({
-                            defaultMessage: "Land Size",
-                            description: "Label for area size",
-                          })}
-                        </Text>
-                        <Text size="large" variant="bold">
-                          {propertyDetails.areaSize ? `${propertyDetails.areaSize} m²` : "-"}
-                        </Text>
-                      </Rows>
-                    </Box>
-                  </Column>
-                </Columns>
-              </Rows>
+                {/* Car Spaces */}
+                <Box
+                  background="neutral"
+                  borderRadius="standard"
+                  padding="1.5u"
+                >
+                  <Rows spacing="0.5u">
+                    <Text size="xsmall" tone="secondary">
+                      {intl.formatMessage({
+                        defaultMessage: "Car Spaces",
+                        description: "Label for car space count",
+                      })}
+                    </Text>
+                    <Text size="large" variant="bold">
+                      {propertyDetails.carSpaces?.toString() || "-"}
+                    </Text>
+                  </Rows>
+                </Box>
+
+                {/* Property Size */}
+                <Box
+                  background="neutral"
+                  borderRadius="standard"
+                  padding="1.5u"
+                >
+                  <Rows spacing="0.5u">
+                    <Text size="xsmall" tone="secondary">
+                      {intl.formatMessage({
+                        defaultMessage: "Property Size",
+                        description: "Label for area size in square meters",
+                      })}
+                    </Text>
+                    <Text size="large" variant="bold">
+                      {propertyDetails.areaSize
+                        ? `${propertyDetails.areaSize} m²`
+                        : "-"}
+                    </Text>
+                  </Rows>
+                </Box>
+              </Grid>
 
               {/* Actions */}
               <Button variant="secondary" stretch onClick={handleReset}>
