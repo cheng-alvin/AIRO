@@ -13,12 +13,14 @@ import {
   Columns,
   Column,
   SearchIcon,
+  Image,
 } from "@canva/app-ui-kit";
 import React, { useState } from "react";
 import { useIntl } from "react-intl";
 import type { AIRO } from "../../types";
 import { PropertyMap } from "./PropertyMap";
 import type { LatLngLiteral } from "leaflet";
+import { fetchSuggestionMock, fetchPropertyDetailsMock } from "../../services/MockDomainService";
 
 type SearchStatus = "idle" | "loading" | "success" | "error";
 type SearchMode = "single" | "chunked";
@@ -72,11 +74,16 @@ export const PropertyFetcherPage = () => {
   const [propertyDetails, setPropertyDetails] =
     useState<AIRO.PropertyData | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+   
   const [selectedCoordinates, setSelectedCoordinates] = useState<LatLngLiteral| null>(null);
 
   const fetchPropertySuggestion = async (
     addressString: string,
   ): Promise<string | null> => {
+    if (process.env.VITE_USE_MOCK_API === "true") {
+      const mockSuggestions = await fetchSuggestionMock(addressString);
+      return mockSuggestions && mockSuggestions.length > 0 ? mockSuggestions[0].id : null;
+    }
     try {
       const response = await fetch(
         `${DOMAIN_API_BASE_URL}/v1/properties/_suggest?terms=${encodeURIComponent(addressString)}`,
@@ -109,6 +116,23 @@ export const PropertyFetcherPage = () => {
   const getPropertyDetails = async (
     id: string,
   ): Promise<AIRO.PropertyData | null> => {
+    if (process.env.VITE_USE_MOCK_API === "true") {
+      const mockDetails = await fetchPropertyDetailsMock(id);
+      if (mockDetails) {
+        return {
+          address: mockDetails.address,
+          bedrooms: mockDetails.bedrooms,
+          bathrooms: mockDetails.bathrooms,
+          carSpaces: mockDetails.carSpaces,
+          areaSize: mockDetails.areaSize,
+          latitude: mockDetails.geolocation?.latitude,
+          longitude: mockDetails.geolocation?.longitude,
+          imageUrl: mockDetails.imageUrl,
+        };
+      }
+      return null;
+    }
+
     try {
       const response = await fetch(
         `${DOMAIN_API_BASE_URL}/v1/properties/${encodeURIComponent(id)}`,

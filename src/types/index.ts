@@ -7,5 +7,6 @@ export namespace AIRO {
     areaSize: number; // area size in m²
     latitude?: number;
     longitude?: number;
+    imageUrl?: string;
   }
 }
