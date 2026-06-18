@@ -13,11 +13,13 @@ import {
   Columns,
   Column,
   SearchIcon,
+  Image,
 } from "@canva/app-ui-kit";
 import React, { useState } from "react";
 import { useIntl } from "react-intl";
-import { AIRO } from "../../types";
+import type { AIRO } from "../../types";
 import { PropertyMap } from "./PropertyMap";
+import { fetchSuggestionMock, fetchPropertyDetailsMock } from "../../services/MockDomainService";
 
 type SearchStatus = "idle" | "loading" | "success" | "error";
 type SearchMode = "single" | "chunked";
@@ -34,7 +36,8 @@ const stateOptions = [
 ];
 
 const DOMAIN_API_BASE_URL = "https://api.domain.com.au";
-const MOCK_TOKEN = process.env.DOMAIN_API_KEY || "MOCK_DOMAIN_API_TOKEN"; // This would typically come from an environment variable or auth flow
+// const MOCK_TOKEN = process.env.DOMAIN_API_KEY || "MOCK_DOMAIN_API_TOKEN"; // This would typically come from an environment variable or auth flow
+const MOCK_TOKEN = "MOCK_DOMAIN_API_TOKEN"; // This would typically come from an environment variable or auth flow
 
 interface DomainSuggestion {
   id: string;
@@ -67,22 +70,38 @@ export const PropertyFetcherPage = () => {
   const [stateInput, setStateInput] = useState<string>("NSW");
   const [postcodeInput, setPostcodeInput] = useState<string>("");
 
-  const [propertyDetails, setPropertyDetails] = useState<AIRO.PropertyData | null>(null);
+  const [propertyDetails, setPropertyDetails] =
+    useState<AIRO.PropertyData | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [selectedCoordinates, setSelectedCoordinates] = useState<{lat: number, lng: number} | null>(null);
+  const [selectedCoordinates, setSelectedCoordinates] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
-  const fetchPropertySuggestion = async (addressString: string): Promise<string | null> => {
+  const fetchPropertySuggestion = async (
+    addressString: string,
+  ): Promise<string | null> => {
+    if (process.env.VITE_USE_MOCK_API === "true") {
+      const mockSuggestions = await fetchSuggestionMock(addressString);
+      return mockSuggestions && mockSuggestions.length > 0 ? mockSuggestions[0].id : null;
+    }
+
     try {
-      const response = await fetch(`${DOMAIN_API_BASE_URL}/v1/properties/_suggest?terms=${encodeURIComponent(addressString)}`, {
-        method: "GET",
-        headers: {
-          "X-Api-Key": MOCK_TOKEN,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${DOMAIN_API_BASE_URL}/v1/properties/_suggest?terms=${encodeURIComponent(addressString)}`,
+        {
+          method: "GET",
+          headers: {
+            "X-Api-Key": MOCK_TOKEN,
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       if (!response.ok) {
-        throw new Error(`Suggestion API failed with status: ${response.status}`);
+        throw new Error(
+          `Suggestion API failed with status: ${response.status}`,
+        );
       }
 
       const data: DomainSuggestion[] = await response.json();
@@ -96,18 +115,42 @@ export const PropertyFetcherPage = () => {
     }
   };
 
-  const getPropertyDetails = async (id: string): Promise<AIRO.PropertyData | null> => {
+  const getPropertyDetails = async (
+    id: string,
+  ): Promise<AIRO.PropertyData | null> => {
+    if (process.env.VITE_USE_MOCK_API === "true") {
+      const mockDetails = await fetchPropertyDetailsMock(id);
+      if (mockDetails) {
+        return {
+          address: mockDetails.address,
+          bedrooms: mockDetails.bedrooms,
+          bathrooms: mockDetails.bathrooms,
+          carSpaces: mockDetails.carSpaces,
+          areaSize: mockDetails.areaSize,
+          latitude: mockDetails.geolocation?.latitude,
+          longitude: mockDetails.geolocation?.longitude,
+          imageUrl: mockDetails.imageUrl,
+        };
+      }
+      return null;
+    }
+
     try {
-      const response = await fetch(`${DOMAIN_API_BASE_URL}/v1/properties/${encodeURIComponent(id)}`, {
-        method: "GET",
-        headers: {
-          "X-Api-Key": MOCK_TOKEN,
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${DOMAIN_API_BASE_URL}/v1/properties/${encodeURIComponent(id)}`,
+        {
+          method: "GET",
+          headers: {
+            "X-Api-Key": MOCK_TOKEN,
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       if (!response.ok) {
-        throw new Error(`Property Details API failed with status: ${response.status}`);
+        throw new Error(
+          `Property Details API failed with status: ${response.status}`,
+        );
       }
 
       const data: DomainPropertyDetails = await response.json();
@@ -142,7 +185,8 @@ export const PropertyFetcherPage = () => {
       if (!streetAddressInput.trim() || !suburbInput.trim()) {
         return;
       }
-      searchQuery = `${streetAddressInput.trim()}, ${suburbInput.trim()} ${stateInput} ${postcodeInput.trim()}`.trim();
+      searchQuery =
+        `${streetAddressInput.trim()}, ${suburbInput.trim()} ${stateInput} ${postcodeInput.trim()}`.trim();
     }
 
     setStatus("loading");
@@ -155,7 +199,10 @@ export const PropertyFetcherPage = () => {
         if (details) {
           setPropertyDetails(details);
           if (details.latitude && details.longitude) {
-            setSelectedCoordinates({ lat: details.latitude, lng: details.longitude });
+            setSelectedCoordinates({
+              lat: details.latitude,
+              lng: details.longitude,
+            });
           }
           setStatus("success");
           return;
@@ -188,13 +235,21 @@ export const PropertyFetcherPage = () => {
     // Future enhancement: trigger reverse geocode lookup here to populate addressInput
   };
 
-  const isSingleInputEmpty = isSubmitted && searchMode === "single" && !addressInput.trim();
-  const isStreetEmpty = isSubmitted && searchMode === "chunked" && !streetAddressInput.trim();
-  const isSuburbEmpty = isSubmitted && searchMode === "chunked" && !suburbInput.trim();
+  const isSingleInputEmpty =
+    isSubmitted && searchMode === "single" && !addressInput.trim();
+  const isStreetEmpty =
+    isSubmitted && searchMode === "chunked" && !streetAddressInput.trim();
+  const isSuburbEmpty =
+    isSubmitted && searchMode === "chunked" && !suburbInput.trim();
 
   return (
     <Box paddingY="2u" height="full">
-      <Box height="full" display="flex" flexDirection="column" justifyContent="spaceBetween">
+      <Box
+        height="full"
+        display="flex"
+        flexDirection="column"
+        justifyContent="spaceBetween"
+      >
         <Rows spacing="2u">
           {/* Header */}
           <Rows spacing="0.5u">
@@ -215,7 +270,12 @@ export const PropertyFetcherPage = () => {
 
           {/* Workflow State Content */}
           {status === "loading" && (
-            <Box paddingY="4u" display="flex" justifyContent="center" alignItems="center">
+            <Box
+              paddingY="4u"
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+            >
               <Rows spacing="1.5u" align="center">
                 <LoadingIndicator size="medium" />
                 <Text tone="secondary" size="small">
@@ -269,68 +329,89 @@ export const PropertyFetcherPage = () => {
                 </Rows>
               </Box>
 
-              {/* Attributes Display Grid */}
-              <Grid columns={2} spacing="1.5u">
-                {/* Bedrooms */}
-                <Box background="neutral" borderRadius="standard" padding="1.5u">
-                  <Rows spacing="0.5u">
-                    <Text size="xsmall" tone="secondary">
-                      {intl.formatMessage({
-                        defaultMessage: "Bedrooms",
-                        description: "Label for bedroom count",
-                      })}
-                    </Text>
-                    <Text size="large" variant="bold">
-                      {propertyDetails.bedrooms?.toString() || "-"}
-                    </Text>
-                  </Rows>
-                </Box>
+              {/* Image Header with 16:9 Container */}
+              {propertyDetails.imageUrl && (
+                <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", borderRadius: "8px", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}>
+                    <img 
+                      src={propertyDetails.imageUrl} 
+                      alt="Property" 
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  </div>
+                </div>
+              )}
 
-                {/* Bathrooms */}
-                <Box background="neutral" borderRadius="standard" padding="1.5u">
-                  <Rows spacing="0.5u">
-                    <Text size="xsmall" tone="secondary">
-                      {intl.formatMessage({
-                        defaultMessage: "Bathrooms",
-                        description: "Label for bathroom count",
-                      })}
-                    </Text>
-                    <Text size="large" variant="bold">
-                      {propertyDetails.bathrooms?.toString() || "-"}
-                    </Text>
-                  </Rows>
-                </Box>
+              {/* Data Grid: Columns layout */}
+              <Rows spacing="1.5u">
+                {/* Row 1: Bedrooms, Bathrooms */}
+                <Columns spacing="1.5u">
+                  <Column width="1/2">
+                    <Box background="neutral" borderRadius="standard" padding="1.5u">
+                      <Rows spacing="0.5u">
+                        <Text size="xsmall" tone="secondary">
+                          {intl.formatMessage({
+                            defaultMessage: "Beds",
+                            description: "Label for bedroom count",
+                          })}
+                        </Text>
+                        <Text size="large" variant="bold">
+                          {propertyDetails.bedrooms?.toString() || "-"}
+                        </Text>
+                      </Rows>
+                    </Box>
+                  </Column>
+                  <Column width="1/2">
+                    <Box background="neutral" borderRadius="standard" padding="1.5u">
+                      <Rows spacing="0.5u">
+                        <Text size="xsmall" tone="secondary">
+                          {intl.formatMessage({
+                            defaultMessage: "Baths",
+                            description: "Label for bathroom count",
+                          })}
+                        </Text>
+                        <Text size="large" variant="bold">
+                          {propertyDetails.bathrooms?.toString() || "-"}
+                        </Text>
+                      </Rows>
+                    </Box>
+                  </Column>
+                </Columns>
 
-                {/* Car Spaces */}
-                <Box background="neutral" borderRadius="standard" padding="1.5u">
-                  <Rows spacing="0.5u">
-                    <Text size="xsmall" tone="secondary">
-                      {intl.formatMessage({
-                        defaultMessage: "Car Spaces",
-                        description: "Label for car space count",
-                      })}
-                    </Text>
-                    <Text size="large" variant="bold">
-                      {propertyDetails.carSpaces?.toString() || "-"}
-                    </Text>
-                  </Rows>
-                </Box>
-
-                {/* Property Size */}
-                <Box background="neutral" borderRadius="standard" padding="1.5u">
-                  <Rows spacing="0.5u">
-                    <Text size="xsmall" tone="secondary">
-                      {intl.formatMessage({
-                        defaultMessage: "Property Size",
-                        description: "Label for area size in square meters",
-                      })}
-                    </Text>
-                    <Text size="large" variant="bold">
-                      {propertyDetails.areaSize ? `${propertyDetails.areaSize} m²` : "-"}
-                    </Text>
-                  </Rows>
-                </Box>
-              </Grid>
+                {/* Row 2: Car Spaces, Land Size */}
+                <Columns spacing="1.5u">
+                  <Column width="1/2">
+                    <Box background="neutral" borderRadius="standard" padding="1.5u">
+                      <Rows spacing="0.5u">
+                        <Text size="xsmall" tone="secondary">
+                          {intl.formatMessage({
+                            defaultMessage: "Car Spaces",
+                            description: "Label for car space count",
+                          })}
+                        </Text>
+                        <Text size="large" variant="bold">
+                          {propertyDetails.carSpaces?.toString() || "-"}
+                        </Text>
+                      </Rows>
+                    </Box>
+                  </Column>
+                  <Column width="1/2">
+                    <Box background="neutral" borderRadius="standard" padding="1.5u">
+                      <Rows spacing="0.5u">
+                        <Text size="xsmall" tone="secondary">
+                          {intl.formatMessage({
+                            defaultMessage: "Land Size",
+                            description: "Label for area size",
+                          })}
+                        </Text>
+                        <Text size="large" variant="bold">
+                          {propertyDetails.areaSize ? `${propertyDetails.areaSize} m²` : "-"}
+                        </Text>
+                      </Rows>
+                    </Box>
+                  </Column>
+                </Columns>
+              </Rows>
 
               {/* Actions */}
               <Button variant="secondary" stretch onClick={handleReset}>
@@ -357,14 +438,16 @@ export const PropertyFetcherPage = () => {
                         isSingleInputEmpty &&
                         intl.formatMessage({
                           defaultMessage: "Please enter an address to search",
-                          description: "Validation error for empty address input",
+                          description:
+                            "Validation error for empty address input",
                         })
                       }
                       control={(props) => (
                         <TextInput
                           {...props}
                           placeholder={intl.formatMessage({
-                            defaultMessage: "e.g. 123 Ocean View Drive, Beachside",
+                            defaultMessage:
+                              "e.g. 123 Ocean View Drive, Beachside",
                             description: "Placeholder text for address input",
                           })}
                           value={addressInput}
@@ -379,7 +462,15 @@ export const PropertyFetcherPage = () => {
                         description: "Button text to query property details",
                       })}
                     </Button>
-                    <Button variant="secondary" stretch type="button" onClick={() => { setSearchMode("chunked"); setIsSubmitted(false); }}>
+                    <Button
+                      variant="secondary"
+                      stretch
+                      type="button"
+                      onClick={() => {
+                        setSearchMode("chunked");
+                        setIsSubmitted(false);
+                      }}
+                    >
                       {intl.formatMessage({
                         defaultMessage: "Search by Address Fields",
                         description: "Button to switch to detailed fields form",
@@ -446,7 +537,8 @@ export const PropertyFetcherPage = () => {
                         <FormField
                           label={intl.formatMessage({
                             defaultMessage: "State",
-                            description: "Dropdown label for Australian state component",
+                            description:
+                              "Dropdown label for Australian state component",
                           })}
                           control={(props) => (
                             <Select
@@ -482,13 +574,23 @@ export const PropertyFetcherPage = () => {
                         <Button variant="primary" stretch type="submit">
                           {intl.formatMessage({
                             defaultMessage: "Fetch Property Details",
-                            description: "Button text to query property details",
+                            description:
+                              "Button text to query property details",
                           })}
                         </Button>
-                        <Button variant="secondary" stretch type="button" onClick={() => { setSearchMode("single"); setIsSubmitted(false); }}>
+                        <Button
+                          variant="secondary"
+                          stretch
+                          type="button"
+                          onClick={() => {
+                            setSearchMode("single");
+                            setIsSubmitted(false);
+                          }}
+                        >
                           {intl.formatMessage({
                             defaultMessage: "Search by Single Address Line",
-                            description: "Button to switch back to single address input",
+                            description:
+                              "Button to switch back to single address input",
                           })}
                         </Button>
                       </Rows>
