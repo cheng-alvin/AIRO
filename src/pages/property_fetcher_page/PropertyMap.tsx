@@ -29,9 +29,9 @@ export const PropertyMap: React.FC<PropertyMapProps> = (props: PropertyMapProps)
 
     // Initialize map
     const map = L.map(mapContainerRef.current).setView(
-      [-33.8688, 151.2093],
+      [-37.8136, 144.9631],
       13,
-    ); // Default to Sydney
+    ); // Default to Melbourne CBD
     mapRef.current = map;
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
