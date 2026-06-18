@@ -18,6 +18,7 @@ import React, { useState } from "react";
 import { useIntl } from "react-intl";
 import type { AIRO } from "../../types";
 import { PropertyMap } from "./PropertyMap";
+import type { LatLngLiteral } from "leaflet";
 
 type SearchStatus = "idle" | "loading" | "success" | "error";
 type SearchMode = "single" | "chunked";
@@ -71,10 +72,7 @@ export const PropertyFetcherPage = () => {
   const [propertyDetails, setPropertyDetails] =
     useState<AIRO.PropertyData | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [selectedCoordinates, setSelectedCoordinates] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+  const [selectedCoordinates, setSelectedCoordinates] = useState<LatLngLiteral| null>(null);
 
   const fetchPropertySuggestion = async (
     addressString: string,

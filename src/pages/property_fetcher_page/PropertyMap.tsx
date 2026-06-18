@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 // Fix for default marker icons missing in Webpack builds
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
+import type { LatLngLiteral } from "leaflet";
 
 const DefaultIcon = L.icon({
   iconUrl: icon,
@@ -14,17 +15,11 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-interface PropertyMapProps {
-  latitude?: number;
-  longitude?: number;
+interface PropertyMapProps extends LatLngLiteral {
   onMapClick?: (lat: number, lng: number) => void;
 }
 
-export const PropertyMap: React.FC<PropertyMapProps> = ({
-  latitude,
-  longitude,
-  onMapClick,
-}) => {
+export const PropertyMap: React.FC<PropertyMapProps> = (props: PropertyMapProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -45,8 +40,8 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
 
     map.on("click", (e: L.LeafletMouseEvent) => {
       const { lat, lng } = e.latlng;
-      if (onMapClick) {
-        onMapClick(lat, lng);
+      if (props.onMapClick) {
+        props.onMapClick(lat, lng);
       }
     });
 
@@ -58,8 +53,8 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
 
   // Update marker when latitude/longitude props change
   useEffect(() => {
-    if (mapRef.current && latitude !== undefined && longitude !== undefined) {
-      const latlng: [number, number] = [latitude, longitude];
+    if (mapRef.current && props.lat !== undefined && props.lng !== undefined) {
+      const latlng: [number, number] = [props.lat, props.lng];
 
       mapRef.current.setView(latlng, 15);
 
@@ -74,13 +69,13 @@ export const PropertyMap: React.FC<PropertyMapProps> = ({
         markerRef.current.on("dragend", (e) => {
           const marker = e.target;
           const position = marker.getLatLng();
-          if (onMapClick) {
-            onMapClick(position.lat, position.lng);
+          if (props.onMapClick) {
+            props.onMapClick(position.lat, position.lng);
           }
         });
       }
     }
-  }, [latitude, longitude, onMapClick]);
+  }, [props.lat, props.lng, props.onMapClick]);
 
   return (
     <div
